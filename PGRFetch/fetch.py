@@ -1,6 +1,13 @@
 # coding: utf8
-import mechanize, urllib, logging, sys, md5
+import mechanize, sys, md5
 from bs4 import BeautifulSoup
+
+"""
+Simple interface for the A1 Pirelli PRGAV4202N ADSL modem.
+Scrapes the network interface statistics from the web frontend (Received/sent packages/bytes)
+and prints it as output for Munin.
+Author: Stefan Anzinger <stefan.anzinger@gmail.com>
+"""
 
 class Interface:
     def __init__(self, url):
@@ -60,12 +67,13 @@ class Interface:
         sent_p = readRow("Empfangene Pakete")
         names = readRow("Gerätename")
         r = {}
-        for i in range(1,len(names)):
+        for i in range(0,len(names)):
             if(recv[i] != None and recv[i].strip() != ''):
                 r[names[i]] = {'rx': int(recv[i]), 
                                'tx': int(sent[i]),
                                'rx_p': int(recv_p[i]),
-                               'tx_p': int(sent_p[i])}
+                               'tx_p': int(sent_p[i])
+                               }
                                
         return r
         
@@ -73,7 +81,19 @@ if __name__ == "__main__":
     i = Interface(sys.argv[1])
     try:
         i.login(sys.argv[2], sys.argv[3])
-        print i.getTrafficStats()
+        stats = i.getTrafficStats()
+        if len(sys.argv) > 4 and sys.argv[4] == "config":
+            print("graph_title Internet Statistik")
+            print("graph_vlabel Bytes")
+            for intf in stats:
+                for type in stats[intf]:
+                    print("%s_%s.label %s (%s)" %(intf,type, intf,type))
+                    print("%s_%s.type COUNTER" %(intf,type))
+                
+        else:
+            for intf in stats:
+                for type in stats[intf]:
+                    print("%s_%s.value %d" %(intf,type,stats[intf][type]))
     finally:
         i.logout()
     
