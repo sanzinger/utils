@@ -70,9 +70,9 @@ class Interface:
         return r
         
 if __name__ == "__main__":
-    i = Interface("http://192.168.0.10/")
+    i = Interface(sys.argv[1])
     try:
-        i.login(sys.argv[1], sys.argv[1])
+        i.login(sys.argv[2], sys.argv[3])
         print i.getTrafficStats()
     finally:
         i.logout()
