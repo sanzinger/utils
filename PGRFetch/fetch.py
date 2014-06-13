@@ -82,14 +82,13 @@ if __name__ == "__main__":
             print("graph_title Internet Statistik")
             print("graph_vlabel Bytes")
             for intf in stats:
-                for type in stats[intf]:
-                    print("%s_%s.label %s (%s)" %(intf,type, intf,type))
-                    print("%s_%s.type COUNTER" %(intf,type))
-                
+                for typ in stats[intf]:
+                    print("%s_%s.label %s (%s)" %(intf,typ, intf,typ))
+                    print("%s_%s.type COUNTER" %(intf,typ))
         else:
             for intf in stats:
-                for type in stats[intf]:
-                    print("%s_%s.value %d" %(intf,type,stats[intf][type]))
+                for typ in stats[intf]:
+                    print("%s_%s.value %d" %(intf,typ,stats[intf][typ]))
     finally:
         i.logout()
     
