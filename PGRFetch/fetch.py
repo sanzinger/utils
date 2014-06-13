@@ -25,10 +25,6 @@ class Interface:
         f = b.form
         f.find_control("user_name").value = u
         
-        """isPwField = lambda f: f != None and f.name != None and "password_" in f.name
-        pwf = [c for c in f.controls if isPwField(c)]
-        assert len(pwf)==1
-        pwf[0].value = p"""
         f.set_all_readonly(False)
         auth_key = f.find_control("auth_key").value
         f.find_control("md5_pass").value = md5.new(p + auth_key).hexdigest()
