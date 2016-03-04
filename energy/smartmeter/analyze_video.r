@@ -1,9 +1,6 @@
 require("jpeg")
 require("ggplot2")
-args <- commandArgs(trailingOnly = TRUE)
-
-video <- args[1]
-output <- args[2]
+require("argparse")
 
 analyzeJpeg <- function (j) {
   img <- readJPEG(j)
@@ -18,7 +15,8 @@ detectEdges <- function(means, n = 8) {
 }
 
 analyzeFrames <- function(fileNames, threshold = .15, plot=F) {
-  means <- sapply(fileNames, analyzeJpeg)
+  require("parallel")
+  means <- as.vector(unlist(mclapply(fileNames, analyzeJpeg, mc.cores=5)))
   fixedMeans <- ifelse(means > threshold, means, 0)
   edges <- detectEdges(fixedMeans)
   if(plot) {
@@ -30,16 +28,23 @@ analyzeFrames <- function(fileNames, threshold = .15, plot=F) {
 
 extractImages <- function(video, toDir) {
   testImage <- sprintf("%s/test.jpg", toDir)
-  system(sprintf("avconv -i %s -ss 10 -frames:v 1 -y %s", video, testImage))
-  testJpg <- readJPEG(testImage)
-  odim <- dim(testJpg)
-  populated <- range(which(testJpg[,10,1] > .2)) # find useful lines
-  unlink(testImage)
+  for(i in 0:5) {
+    cmd <- sprintf("ffmpeg -i %s -ss %s -frames:v 1 -y %s", video, 10+i*10, testImage)
+    print(paste("Executing", cmd))
+    system(cmd)
+    testJpg <- readJPEG(testImage)
+    odim <- dim(testJpg)
+    populated <- range(which(testJpg[,10,1] > .2)) # find useful lines
+    if(all(is.finite(populated))) {
+      break
+    }
+  }
   cropHeight <- (populated[2]-populated[1]);
   posY <- populated[1] - round(cropHeight * .1)
   cropHeight <- round(cropHeight * 1.2)
-  cmd <- sprintf("avconv -i %s -r 25 -vf crop=%s:%s:0:%s %s/filename%%05d.jpg", 
+  cmd <- sprintf("ffmpeg -v warning -i %s -r 25 -vf crop=%s:%s:0:%s %s/filename%%06d.jpg", 
           video, odim[2], cropHeight, posY, toDir)
+  print(paste("Executing:", cmd))
   system(cmd)
 }
 
@@ -57,24 +62,25 @@ addTimestamp <- function(name, result) {
   data.frame(row.names=c(), Date=result$ts, edge=result$edge, means=result$means)
 }
 
-processVideo <- function(name) {
-  t <- paste("/tmp/rprocess-", Sys.getpid(), "/", sep="")
+processVideo <- function(name, tmp="/tmp") {
+  t <- paste(tmp, "/rprocess-", Sys.getpid(), "/", sep="")
   dir.create(t)
   r <- addTimestamp(name, detectPoints(name, t))
   unlink(t, recursive = T)
   r
 }
 
-newData <- processVideo(video)
+parser <- ArgumentParser(description="Analyze smartmeter videos")
+parser$add_argument("-i", dest='input',  required=T, help="Input video")
+parser$add_argument("-o", dest='output', required=T, help="Output file of dataframe")
+parser$add_argument("-t", dest='tmp', default="/tmp", help="Temporary directory")
+args <- parser$parse_args()
 
-if(file.exists(output)) {
-  load(output)
-  s <- rbind(s, newData)
-} else {
-  s <- newData
-}
+s <- processVideo(args$input, tmp=args$tmp)
 
-save(s, file=output)
+save(s, file=args$output)
+
+# The following plots are for analyzing (Kept for reference, may go away)
 if(F) {
   s2 <- do.call("rbind", s)
   s2 <- s2[s2$edge==1,]
